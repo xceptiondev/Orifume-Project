@@ -96,6 +96,20 @@ const Store = {
         return newProduct;
     },
 
+    updateProduct(product) {
+        const products = this.getProducts();
+        const index = products.findIndex(p => p.id === product.id);
+        if (index !== -1) {
+            // Keep existing image if new one is not provided
+            if (!product.image && products[index].image) {
+                product.image = products[index].image;
+            }
+            products[index] = { ...products[index], ...product };
+            localStorage.setItem(STORE_KEY, JSON.stringify(products));
+            return products[index];
+        }
+    },
+
     removeProduct(id) {
         const products = this.getProducts();
         const filtered = products.filter(p => p.id !== id);
