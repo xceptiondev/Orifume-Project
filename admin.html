@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORIFUME - Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&amp;family=Outfit:wght@200;300;400;500&amp;display=swap"
+        rel="stylesheet">
+    <script src="js/store.js"></script>
+    <style>
+        /* Reusing core styles for consistency */
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --text-primary: #f5f0e8;
+            --accent-primary: #c9a962;
+            --accent-secondary: #8b7355;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .font-serif-elegant {
+            font-family: 'Cormorant Garamond', serif;
+        }
+
+        .text-accent {
+            color: var(--accent-primary);
+        }
+
+        .border-accent {
+            border-color: var(--accent-primary);
+        }
+
+        input,
+        textarea,
+        select {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(201, 169, 98, 0.3);
+            color: var(--text-primary);
+            padding: 0.75rem;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            color: #000;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            letter-spacing: 0.1em;
+            transition: opacity 0.3s;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid rgba(201, 169, 98, 0.1);
+        }
+    </style>
+</head>
+
+<body class="h-full flex flex-col">
+
+    <!-- Login Section -->
+    <div id="login-section" class="flex-grow flex items-center justify-center p-4">
+        <div class="card p-8 md:p-12 max-w-md w-full text-center">
+            <h1 class="font-serif-elegant text-4xl mb-2">Admin Access</h1>
+            <p class="text-accent text-sm tracking-widest uppercase mb-8">Orifume Dashboard</p>
+
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <input type="text" id="username" placeholder="Username" required>
+                </div>
+                <div>
+                    <input type="password" id="password" placeholder="Password" required>
+                </div>
+                <button type="submit" class="btn-primary w-full uppercase text-xs">Enter Portal</button>
+            </form>
+            <p id="login-error" class="text-red-500 text-sm mt-4 hidden">Invalid credentials</p>
+        </div>
+    </div>
+
+    <!-- Dashboard Section -->
+    <div id="dashboard-section" class="hidden flex-grow flex flex-col h-full">
+        <header class="border-b border-accent border-opacity-20 p-6 flex justify-between items-center bg-zinc-900">
+            <div class="flex items-center space-x-4">
+                <span class="font-serif-elegant text-2xl tracking-widest">ORIFUME</span>
+                <span class="text-xs bg-accent text-black px-2 py-0.5 rounded font-bold">ADMIN</span>
+            </div>
+            <button id="logout-btn" class="text-sm text-accent hover:text-white transition-colors">LOGOUT</button>
+        </header>
+
+        <main class="flex-grow p-6 overflow-auto">
+            <div class="max-w-7xl mx-auto grid lg:grid-cols-3 gap-8">
+
+                <!-- Add Product Form -->
+                <div class="lg:col-span-1">
+                    <div class="card p-6 sticky top-6">
+                        <h2 class="font-serif-elegant text-2xl mb-6 flex items-center">
+                            <span class="text-accent mr-2">+</span> Add New Scent
+                        </h2>
+                        <form id="add-product-form" class="space-y-4">
+                            <div>
+                                <label class="block text-xs uppercase tracking-wider opacity-60 mb-1">Name</label>
+                                <input type="text" name="name" required placeholder="e.g. Midnight Silk">
+                            </div>
+                            <div>
+                                <label class="block text-xs uppercase tracking-wider opacity-60 mb-1">Tagline</label>
+                                <input type="text" name="tagline" required placeholder="DARK · MYSTERIOUS · SOFT">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs uppercase tracking-wider opacity-60 mb-1">Product Image (Max
+                                    500KB)</label>
+                                <input type="file" id="product-image-input" accept="image/*"
+                                    class="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-accent file:text-black hover:file:bg-white transition-all cursor-pointer">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs uppercase tracking-wider opacity-60 mb-1">Price (₦)</label>
+                                <input type="number" name="price" required placeholder="e.g. 45000">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs uppercase tracking-wider opacity-60 mb-1">Color
+                                        From</label>
+                                    <select name="colorFrom" class="text-sm">
+                                        <option value="stone-600">Stone</option>
+                                        <option value="sky-200">Sky</option>
+                                        <option value="amber-600">Amber</option>
+                                        <option value="emerald-700">Emerald</option>
+                                        <option value="violet-400">Violet</option>
+                                        <option value="rose-500">Rose</option>
+                                        <option value="neutral-800">Black/Dark</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs uppercase tracking-wider opacity-60 mb-1">Color
+                                        To</label>
+                                    <select name="colorTo" class="text-sm">
+                                        <option value="stone-800">Stone Dark</option>
+                                        <option value="slate-300">Slate</option>
+                                        <option value="red-900">Red Dark</option>
+                                        <option value="teal-900">Teal Dark</option>
+                                        <option value="indigo-700">Indigo</option>
+                                        <option value="fuchsia-900">Fuchsia</option>
+                                        <option value="black">Black</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2 pt-2 border-t border-white border-opacity-10">
+                                <p class="text-xs uppercase text-accent">Fragrance Profile</p>
+                                <input type="text" name="top" placeholder="Top Notes (e.g. Citrus, Mint)" required>
+                                <input type="text" name="heart" placeholder="Heart Notes (e.g. Jasmine, Rose)" required>
+                                <input type="text" name="base" placeholder="Base Notes (e.g. Oud, Musk)" required>
+                            </div>
+
+                            <button type="submit" class="btn-primary w-full mt-4">ADD TO COLLECTION</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Product List -->
+                <div class="lg:col-span-2">
+                    <h2 class="font-serif-elegant text-2xl mb-6">Current Collection</h2>
+                    <div id="product-list" class="grid sm:grid-cols-2 gap-4">
+                        <!-- JS Rendered -->
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const loginSection = document.getElementById('login-section');
+        const dashboardSection = document.getElementById('dashboard-section');
+        const loginForm = document.getElementById('login-form');
+        const addProductForm = document.getElementById('add-product-form');
+        const productList = document.getElementById('product-list');
+
+        // Check Session
+        if (sessionStorage.getItem('isAdmin')) {
+            showDashboard();
+        }
+
+        function showDashboard() {
+            loginSection.classList.add('hidden');
+            dashboardSection.classList.remove('hidden');
+            renderAdminProducts();
+        }
+
+        // Login Logic
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            if (window.Store.checkLogin(u, p)) {
+                sessionStorage.setItem('isAdmin', 'true');
+                showDashboard();
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            sessionStorage.removeItem('isAdmin');
+            window.location.reload();
+        });
+
+        // Add Product
+        addProductForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('product-image-input');
+            const file = fileInput.files[0];
+            let imageBase64 = null;
+
+            if (file) {
+                if (file.size > 500 * 1024) { // 500KB limit
+                    alert('Image is too large! Please use an image under 500KB.');
+                    return;
+                }
+                try {
+                    imageBase64 = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = error => reject(error);
+                        reader.readAsDataURL(file);
+                    });
+                } catch (err) {
+                    alert('Error reading image file');
+                    return;
+                }
+            }
+
+            const formData = new FormData(addProductForm);
+            const data = Object.fromEntries(formData.entries());
+
+            if (imageBase64) {
+                data.image = imageBase64;
+            }
+
+            window.Store.addProduct(data);
+            addProductForm.reset();
+            fileInput.value = ''; // Reset file input manually
+            renderAdminProducts();
+            alert('Product added successfully!');
+        });
+
+        // Render Logic
+        function renderAdminProducts() {
+            const products = window.Store.getProducts();
+            productList.innerHTML = products.map(p => `
+            <div class="card p-5 flex flex-col justify-between relative group hover:border-accent transition-colors">
+                <div>
+                     <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-serif-elegant text-xl">${p.name}</h3>
+                        <span class="text-accent text-sm">${window.Store.formatPrice(p.price)}</span>
+                     </div>
+                     <p class="text-xs text-white opacity-50 mb-3 uppercase tracking-wider">${p.tagline}</p>
+                     
+                     <div class="flex space-x-2 mb-4">
+                        <span class="w-4 h-4 rounded-full bg-gradient-to-br from-${p.colorFrom} to-${p.colorTo}" style="background: linear-gradient(135deg, var(--${p.colorFrom}-color, #555), var(--${p.colorTo}-color, #000)); border: 1px solid rgba(255,255,255,0.2);"></span>
+                     </div>
+
+                     <div class="text-xs opacity-60 space-y-1">
+                        <p><strong>Top:</strong> ${p.top}</p>
+                        <p><strong>Heart:</strong> ${p.heart}</p>
+                        <p><strong>Base:</strong> ${p.base}</p>
+                     </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-white border-opacity-10 text-right">
+                    <button onclick="deleteProduct('${p.id}')" class="text-xs text-red-400 hover:text-red-300 uppercase tracking-widest">Remove</button>
+                </div>
+            </div>
+        `).join('');
+        }
+
+        window.deleteProduct = (id) => {
+            if (confirm('Are you sure you want to remove this scent from the collection?')) {
+                window.Store.removeProduct(id);
+                renderAdminProducts();
+            }
+        }
+    </script>
+</body>
+
+</html>
