@@ -112,9 +112,7 @@ const Store = {
         }
     },
 
-    checkLogin(username, password) {
-        return username === 'admin' && password === 'admin123';
-    },
+
 
     formatPrice(price) {
         return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(price);

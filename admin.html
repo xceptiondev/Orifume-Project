@@ -15,6 +15,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
     <!-- Config -->
     <script src="js/firebase-config.js"></script>
@@ -95,7 +96,7 @@
 
             <form id="login-form" class="space-y-6">
                 <div>
-                    <input type="text" id="username" placeholder="Username" required>
+                    <input type="email" id="email" placeholder="Admin Email" required>
                 </div>
                 <div>
                     <input type="password" id="password" placeholder="Password" required>
@@ -217,10 +218,15 @@
         const addProductForm = document.getElementById('add-product-form');
         const productList = document.getElementById('product-list');
 
-        // Check Session
-        if (sessionStorage.getItem('isAdmin')) {
-            showDashboard();
-        }
+        // Auth Listener
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                showDashboard();
+            } else {
+                loginSection.classList.remove('hidden');
+                dashboardSection.classList.add('hidden');
+            }
+        });
 
         function showDashboard() {
             loginSection.classList.add('hidden');
@@ -231,19 +237,27 @@
         // Login Logic
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const u = document.getElementById('username').value;
-            const p = document.getElementById('password').value;
-            if (window.Store.checkLogin(u, p)) {
-                sessionStorage.setItem('isAdmin', 'true');
-                showDashboard();
-            } else {
-                document.getElementById('login-error').classList.remove('hidden');
-            }
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('login-error');
+
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // Signed in
+                    errorMsg.classList.add('hidden');
+                })
+                .catch((error) => {
+                    errorMsg.textContent = error.message;
+                    errorMsg.classList.remove('hidden');
+                });
         });
 
         document.getElementById('logout-btn').addEventListener('click', () => {
-            sessionStorage.removeItem('isAdmin');
-            window.location.reload();
+            firebase.auth().signOut().then(() => {
+                window.location.reload();
+            }).catch((error) => {
+                console.error("Sign Check Error", error);
+            });
         });
 
         let isEditMode = false;
