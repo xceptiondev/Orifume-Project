@@ -328,6 +328,14 @@
       navigation: auto;
     }
   </style>
+
+  <!-- Firebase SDKs (v8.10.1 for compatibility) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
+  <!-- Config -->
+  <script src="js/firebase-config.js"></script>
   <script src="js/store.js"></script>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
 </head>
@@ -620,59 +628,56 @@
         </div>
 
         <script>
-          document.addEventListener('DOMContentLoaded', () => {
+          document.addEventListener('DOMContentLoaded', async () => {
             const container = document.getElementById('scents-container');
-            const products = window.Store.getProducts();
 
-            container.innerHTML = products.map((product, index) => `
-              <div class="fragrance-card card-hover p-8 border border-accent border-opacity-10 relative group flex flex-col h-full">
-                <div class="flex items-center justify-between mb-6">
-                  <span class="text-accent text-xs tracking-widest">${String(index + 1).padStart(2, '0')}</span>
-                  ${product.image
-                ? `<div class="w-12 h-12 rounded-full overflow-hidden border border-accent border-opacity-30"><img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover"></div>`
-                : `<div class="w-8 h-8 rounded-full bg-gradient-to-br from-${product.colorFrom} to-${product.colorTo}" style="background: linear-gradient(135deg, var(--${product.colorFrom}-color, #555), var(--${product.colorTo}-color, #000)); border: 1px solid rgba(255,255,255,0.2);"></div>`
-              }
-                </div>
-                
-                ${product.image ? `<div class="w-full aspect-square mb-6 rounded overflow-hidden hidden"><img src="${product.image}" class="w-full h-full object-cover"></div>` : ''} 
-                <!-- Kept image small in the corner token for now to match current minimalist layout, OR could make it a main feature. 
-                     Given "Luxury" usually implies big product shots, let's try a conditional main image if user wants, 
-                     but the user asked "display picture", which often means the thumbnail. 
-                     Let's stick to the token replacement first for consistency, or add a background fade?
-                     Actually, a 12x12 (3rem) circle is a nice subtle profile pic. 
-                     Let's try to make it a bit more prominent if it's a real photo.
-                     How about we show the big image if it exists? 
-                     User said "appear on the index page", usually implies a visible product photo.
-                     Let's add a main image block below the header if it exists. -->
-                
-                ${product.image
-                ? `<div class="w-full h-48 mb-6 rounded-sm overflow-hidden border border-accent border-opacity-20"><img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover hover:scale-110 transition-transform duration-700"></div>`
-                : ''
+            // Show loading state
+            container.innerHTML = '<p class="text-center w-full col-span-3 opacity-50">Loading scents from the collection...</p>';
+
+            try {
+              const products = await window.Store.getProducts();
+
+              if (products.length === 0) {
+                container.innerHTML = '<p class="text-center w-full col-span-3 opacity-50">No scents found in the collection.</p>';
+                return;
               }
 
-                <h3 class="font-serif-elegant text-2xl text-dynamic mb-2">${product.name}</h3>
-                <p class="text-xs tracking-wider text-accent mb-4 uppercase">${product.tagline}</p>
-                <p class="text-lg text-dynamic font-serif-elegant mb-4 opacity-90">${window.Store.formatPrice(product.price)}</p>
-                
-                <div class="space-y-3 text-sm text-dynamic opacity-60 mt-auto">
-                  <div class="flex justify-between"><span class="opacity-50">Top</span> <span>${product.top}</span></div>
-                  <div class="flex justify-between"><span class="opacity-50">Heart</span> <span>${product.heart}</span></div>
-                  <div class="flex justify-between"><span class="opacity-50">Base</span> <span>${product.base}</span></div>
-                </div>
-              </div>
-            `).join('');
-
-            // Fix for gradient circles: Data store returns tailwind class substrings (e.g., 'stone-600'). 
-            // Since we can't guarantee arbitrary tailwind classes are generated in the CSS bundle, 
-            // let's adjust the rendering to simple colors or use inline styles if we want robust dynamic colors without rebuilding CSS.
-            // For this quick prototype, I'll update the render above to attempt inline styles if I can, 
-            // but the store has 'colorFrom' as 'stone-600'. 
-            // Let's refine the render loop to just use a generic 'bg-accent' or try to map it. 
-            // actually, let's just use class names and hope common ones are there, or strictly use inline styles if we were building it.
-            // A safer bet for a robust "Add Product" feature is to let user pick a Hex code, but the prompt implies simple additions.
-            // I'll leave the class names but add a style fallback for the gradients in the admin tool later.
-            // For now, let's just re-render cleanly.
+              container.innerHTML = products.map((product, index) => `
+                  <div class="fragrance-card card-hover p-8 border border-accent border-opacity-10 relative group flex flex-col h-full">
+                    <div class="flex items-center justify-between mb-6">
+                      <span class="text-accent text-xs tracking-widest">${String(index + 1).padStart(2, '0')}</span>
+                      ${product.image
+                  ? `<div class="w-12 h-12 rounded-full overflow-hidden border border-accent border-opacity-30"><img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover"></div>`
+                  : `<div class="w-8 h-8 rounded-full bg-gradient-to-br from-${product.colorFrom} to-${product.colorTo}" style="background: linear-gradient(135deg, var(--${product.colorFrom}-color, #555), var(--${product.colorTo}-color, #000)); border: 1px solid rgba(255,255,255,0.2);"></div>`
+                }
+                    </div>
+                    
+                    ${product.image
+                  ? `<div class="w-full h-48 mb-6 rounded-sm overflow-hidden border border-accent border-opacity-20"><img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover hover:scale-110 transition-transform duration-700"></div>`
+                  : ''
+                }
+    
+                    <h3 class="font-serif-elegant text-2xl text-dynamic mb-2">${product.name}</h3>
+                    <p class="text-xs tracking-wider text-accent mb-4 uppercase">${product.tagline}</p>
+                    <p class="text-lg text-dynamic font-serif-elegant mb-4 opacity-90">${window.Store.formatPrice(product.price)}</p>
+                    
+                    <div class="space-y-3 text-sm text-dynamic opacity-60 mt-auto">
+                      <div class="flex justify-between"><span class="opacity-50">Top</span> <span>${product.top}</span></div>
+                      <div class="flex justify-between"><span class="opacity-50">Heart</span> <span>${product.heart}</span></div>
+                      <div class="flex justify-between"><span class="opacity-50">Base</span> <span>${product.base}</span></div>
+                    </div>
+                  </div>
+                `).join('');
+            } catch (err) {
+              console.error(err);
+              container.innerHTML = '<p class="text-center w-full col-span-3 text-red-400">Unable to load collection. Please try again later.</p>';
+            }
           });
+
+          /* Note on images:
+             If product.image is a full URL (from Firebase Storage), it works directly.
+             If it's a relative path (from old local setup), it works if files exist.
+          */
         </script>
       </div>
     </section>

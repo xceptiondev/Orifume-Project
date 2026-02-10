@@ -1,123 +1,118 @@
-const STORE_KEY = 'orifume_products';
+const COLLECTION_NAME = 'products';
 
-const DEFAULT_PRODUCTS = [
-    {
-        id: '1',
-        name: 'Terre Sacrée',
-        tagline: 'EARTHY · GROUNDED · PROFOUND',
-        price: 45000,
-        top: 'Bergamot, Pink Pepper',
-        heart: 'Vetiver, Cedar',
-        base: 'Oud, Sandalwood',
-        colorFrom: 'stone-600',
-        colorTo: 'stone-800'
-    },
-    {
-        id: '2',
-        name: 'Lumière Pure',
-        tagline: 'CLEAN · CRISP · LUMINOUS',
-        price: 42000,
-        top: 'Yuzu, Sea Salt',
-        heart: 'White Tea, Iris',
-        base: 'White Musk, Cashmere',
-        colorFrom: 'sky-200',
-        colorTo: 'slate-300'
-    },
-    {
-        id: '3',
-        name: 'Velours Rouge',
-        tagline: 'BOLD · SENSUAL · PASSIONATE',
-        price: 48000,
-        top: 'Saffron, Cardamom',
-        heart: 'Rose Absolute, Jasmine',
-        base: 'Amber, Vanilla Orchid',
-        colorFrom: 'amber-600',
-        colorTo: 'red-900'
-    },
-    {
-        id: '4',
-        name: 'Forêt Noire',
-        tagline: 'MYSTERIOUS · DEEP · ENCHANTING',
-        price: 46000,
-        top: 'Black Pepper, Juniper',
-        heart: 'Pine, Violet Leaf',
-        base: 'Moss, Leather, Patchouli',
-        colorFrom: 'emerald-700',
-        colorTo: 'teal-900'
-    },
-    {
-        id: '5',
-        name: 'Nuit Étoilée',
-        tagline: 'DREAMY · ETHEREAL · MAGNETIC',
-        price: 50000,
-        top: 'Star Anise, Lavender',
-        heart: 'Orris, Incense',
-        base: 'Benzoin, Tonka, Musk',
-        colorFrom: 'violet-400',
-        colorTo: 'indigo-700'
-    },
-    {
-        id: '6',
-        name: 'Sol Doré',
-        tagline: 'WARM · RADIANT · JOYFUL',
-        price: 44000,
-        top: 'Neroli, Mandarin',
-        heart: 'Orange Blossom, Honey',
-        base: 'Blonde Woods, Ambrette',
-        colorFrom: 'amber-200',
-        colorTo: 'orange-300'
-    }
-];
+// Helper to get DB and Storage from the global firebase object (initialized in firebase-config.js)
+const getDb = () => firebase.firestore();
+const getStorage = () => firebase.storage();
 
 const Store = {
-    init() {
-        if (!localStorage.getItem(STORE_KEY)) {
-            localStorage.setItem(STORE_KEY, JSON.stringify(DEFAULT_PRODUCTS));
-        }
-    },
-
-    getProducts() {
-        this.init();
+    // Fetch products from Firestore
+    async getProducts() {
         try {
-            return JSON.parse(localStorage.getItem(STORE_KEY)) || [];
-        } catch (e) {
+            const snapshot = await getDb().collection(COLLECTION_NAME).get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (error) {
+            console.error("Error fetching products:", error);
             return [];
         }
     },
 
-    addProduct(product) {
-        const products = this.getProducts();
-        const newProduct = {
-            id: Date.now().toString(),
-            ...product
-        };
-        products.push(newProduct);
-        localStorage.setItem(STORE_KEY, JSON.stringify(products));
-        return newProduct;
-    },
+    // Add product to Firestore (and upload image if exists)
+    async addProduct(product) {
+        try {
+            let imageUrl = null;
 
-    updateProduct(product) {
-        const products = this.getProducts();
-        const index = products.findIndex(p => p.id === product.id);
-        if (index !== -1) {
-            // Keep existing image if new one is not provided
-            if (!product.image && products[index].image) {
-                product.image = products[index].image;
+            // 1. Upload Image if it's a File object (from Admin input) or a Base64 string (legacy)
+            // Note: In the new admin flow, we should pass the File object directly.
+            // If product.image is a Data URL (base64) from the old code, we can try to upload it, 
+            // but for best results, we'll update admin.html to pass the File object.
+
+            // Let's assume product.imageFile is passed if it's a new upload
+            if (product.imageFile) {
+                const storageRef = getStorage().ref();
+                const fileRef = storageRef.child(`products/${Date.now()}_${product.imageFile.name}`);
+                await fileRef.put(product.imageFile);
+                imageUrl = await fileRef.getDownloadURL();
+            } else if (product.image && product.image.startsWith('data:')) {
+                // Fallback for base64 if needed, users might not change admin.html immediately
+                const storageRef = getStorage().ref();
+                const fileRef = storageRef.child(`products/${Date.now()}_image`);
+                await fileRef.putString(product.image, 'data_url');
+                imageUrl = await fileRef.getDownloadURL();
+            } else if (product.image) {
+                // Keep existing URL/path if valid
+                imageUrl = product.image;
             }
-            products[index] = { ...products[index], ...product };
-            localStorage.setItem(STORE_KEY, JSON.stringify(products));
-            return products[index];
+
+            // 2. Prepare Data
+            const newProduct = {
+                name: product.name,
+                tagline: product.tagline,
+                price: Number(product.price),
+                top: product.top,
+                heart: product.heart,
+                base: product.base,
+                colorFrom: product.colorFrom,
+                colorTo: product.colorTo,
+                image: imageUrl,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            // 3. Save to Firestore
+            const docRef = await getDb().collection(COLLECTION_NAME).add(newProduct);
+            return { id: docRef.id, ...newProduct };
+
+        } catch (error) {
+            console.error("Error adding product:", error);
+            throw error;
         }
     },
 
-    removeProduct(id) {
-        const products = this.getProducts();
-        const filtered = products.filter(p => p.id !== id);
-        localStorage.setItem(STORE_KEY, JSON.stringify(filtered));
+    // Update product
+    async updateProduct(product) {
+        try {
+            let imageUrl = product.image;
+
+            if (product.imageFile) {
+                const storageRef = getStorage().ref();
+                const fileRef = storageRef.child(`products/${Date.now()}_${product.imageFile.name}`);
+                await fileRef.put(product.imageFile);
+                imageUrl = await fileRef.getDownloadURL();
+            }
+
+            const updateData = {
+                name: product.name,
+                tagline: product.tagline,
+                price: Number(product.price),
+                top: product.top,
+                heart: product.heart,
+                base: product.base,
+                colorFrom: product.colorFrom,
+                colorTo: product.colorTo
+            };
+
+            if (imageUrl) {
+                updateData.image = imageUrl;
+            }
+
+            await getDb().collection(COLLECTION_NAME).doc(product.id).update(updateData);
+            return { id: product.id, ...updateData };
+        } catch (error) {
+            console.error("Error updating product:", error);
+            throw error;
+        }
+    },
+
+    // Remove product
+    async removeProduct(id) {
+        try {
+            await getDb().collection(COLLECTION_NAME).doc(id).delete();
+        } catch (error) {
+            console.error("Error deleting product:", error);
+            throw error;
+        }
     },
 
     checkLogin(username, password) {
-        // Hardcoded for demo purposes
         return username === 'admin' && password === 'admin123';
     },
 

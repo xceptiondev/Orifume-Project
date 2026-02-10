@@ -11,6 +11,13 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&amp;family=Outfit:wght@200;300;400;500&amp;display=swap"
         rel="stylesheet">
+    <!-- Firebase SDKs (v8.10.1 for compatibility) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
+    <!-- Config -->
+    <script src="js/firebase-config.js"></script>
     <script src="js/store.js"></script>
     <style>
         /* Reusing core styles for consistency */
@@ -108,6 +115,16 @@
             </div>
             <button id="logout-btn" class="text-sm text-accent hover:text-white transition-colors">LOGOUT</button>
         </header>
+
+        <!-- Local Storage Warning -->
+        <div class="bg-amber-900/30 border-b border-amber-500/30 p-2 text-center">
+            <p class="text-xs text-amber-200">
+                <span class="font-bold">NOTE:</span> Products added here are saved to <u>Local Storage</u> (your browser
+                only).
+                To display products/images permanently for all users on GitHub Pages, you must add them to the source
+                code (js/store.js) and upload image files to the repo.
+            </p>
+        </div>
 
         <main class="flex-grow p-6 overflow-auto">
             <div class="max-w-7xl mx-auto grid lg:grid-cols-3 gap-8">
@@ -237,47 +254,43 @@
         addProductForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const fileInput = document.getElementById('product-image-input');
-            const file = fileInput.files[0];
-            let imageBase64 = null;
+            // Show Loading
+            const originalBtnText = submitBtn.textContent;
+            submitBtn.textContent = 'PROCESSING...';
+            submitBtn.disabled = true;
 
-            if (file) {
-                if (file.size > 500 * 1024) { // 500KB limit
-                    alert('Image is too large! Please use an image under 500KB.');
-                    return;
+            try {
+                const fileInput = document.getElementById('product-image-input');
+                const file = fileInput.files[0];
+
+                const formData = new FormData(addProductForm);
+                const data = Object.fromEntries(formData.entries());
+
+                // Pass the File object directly to the store for upload
+                if (file) {
+                    data.imageFile = file;
                 }
-                try {
-                    imageBase64 = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result);
-                        reader.onerror = error => reject(error);
-                        reader.readAsDataURL(file);
-                    });
-                } catch (err) {
-                    alert('Error reading image file');
-                    return;
+
+                if (isEditMode && currentEditId) {
+                    data.id = currentEditId;
+                    await window.Store.updateProduct(data);
+                    alert('Product updated successfully!');
+                    resetForm();
+                } else {
+                    await window.Store.addProduct(data);
+                    alert('Product added successfully!');
+                    resetForm();
                 }
+
+                await renderAdminProducts();
+
+            } catch (err) {
+                console.error(err);
+                alert('Error processing request: ' + err.message);
+            } finally {
+                submitBtn.textContent = originalBtnText;
+                submitBtn.disabled = false;
             }
-
-            const formData = new FormData(addProductForm);
-            const data = Object.fromEntries(formData.entries());
-
-            if (imageBase64) {
-                data.image = imageBase64;
-            }
-
-            if (isEditMode && currentEditId) {
-                data.id = currentEditId;
-                window.Store.updateProduct(data);
-                alert('Product updated successfully!');
-                resetForm();
-            } else {
-                window.Store.addProduct(data);
-                alert('Product added successfully!');
-                resetForm();
-            }
-
-            renderAdminProducts();
         });
 
         function resetForm() {
@@ -296,78 +309,110 @@
         }
 
         // Render Logic
-        function renderAdminProducts() {
-            const products = window.Store.getProducts();
-            productList.innerHTML = products.map(p => `
-            <div class="card p-5 flex flex-col justify-between relative group hover:border-accent transition-colors">
-                <div>
-                     <div class="flex justify-between items-start mb-2">
-                        <h3 class="font-serif-elegant text-xl">${p.name}</h3>
-                        <span class="text-accent text-sm">${window.Store.formatPrice(p.price)}</span>
-                     </div>
-                     <p class="text-xs text-white opacity-50 mb-3 uppercase tracking-wider">${p.tagline}</p>
-                     
-                     <div class="flex space-x-2 mb-4">
-                        <span class="w-4 h-4 rounded-full bg-gradient-to-br from-${p.colorFrom} to-${p.colorTo}" style="background: linear-gradient(135deg, var(--${p.colorFrom}-color, #555), var(--${p.colorTo}-color, #000)); border: 1px solid rgba(255,255,255,0.2);"></span>
-                        ${p.image ? '<span class="text-xs text-accent self-center ml-2 border border-accent px-1 rounded">IMG</span>' : ''}
-                     </div>
+        async function renderAdminProducts() {
+            productList.innerHTML = '<p class="text-white opacity-50">Loading collection...</p>';
 
-                     <div class="text-xs opacity-60 space-y-1">
-                        <p><strong>Top:</strong> ${p.top}</p>
-                        <p><strong>Heart:</strong> ${p.heart}</p>
-                        <p><strong>Base:</strong> ${p.base}</p>
-                     </div>
+            try {
+                const products = await window.Store.getProducts(); // Now Async
+
+                if (products.length === 0) {
+                    productList.innerHTML = '<p class="text-white opacity-50">No products found. Add one to start.</p>';
+                    return;
+                }
+
+                productList.innerHTML = products.map(p => `
+                <div class="card p-5 flex flex-col justify-between relative group hover:border-accent transition-colors">
+                    <div>
+                         <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-serif-elegant text-xl">${p.name}</h3>
+                            <span class="text-accent text-sm">${window.Store.formatPrice(p.price)}</span>
+                         </div>
+                         <p class="text-xs text-white opacity-50 mb-3 uppercase tracking-wider">${p.tagline}</p>
+                         
+                         <div class="flex space-x-2 mb-4">
+                            <span class="w-4 h-4 rounded-full bg-gradient-to-br from-${p.colorFrom} to-${p.colorTo}" style="background: linear-gradient(135deg, var(--${p.colorFrom}-color, #555), var(--${p.colorTo}-color, #000)); border: 1px solid rgba(255,255,255,0.2);"></span>
+                            ${p.image ? '<span class="text-xs text-accent self-center ml-2 border border-accent px-1 rounded">IMG</span>' : ''}
+                         </div>
+
+                         <div class="text-xs opacity-60 space-y-1">
+                            <p><strong>Top:</strong> ${p.top}</p>
+                            <p><strong>Heart:</strong> ${p.heart}</p>
+                            <p><strong>Base:</strong> ${p.base}</p>
+                         </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-white border-opacity-10 flex justify-end space-x-4">
+                        <button onclick="editProduct('${p.id}')" class="text-xs text-accent hover:text-white uppercase tracking-widest">Edit</button>
+                        <button onclick="deleteProduct('${p.id}')" class="text-xs text-red-400 hover:text-red-300 uppercase tracking-widest">Remove</button>
+                    </div>
                 </div>
-                <div class="mt-4 pt-4 border-t border-white border-opacity-10 flex justify-end space-x-4">
-                    <button onclick="editProduct('${p.id}')" class="text-xs text-accent hover:text-white uppercase tracking-widest">Edit</button>
-                    <button onclick="deleteProduct('${p.id}')" class="text-xs text-red-400 hover:text-red-300 uppercase tracking-widest">Remove</button>
-                </div>
-            </div>
-        `).join('');
+            `).join('');
+
+            } catch (err) {
+                console.error(err);
+                productList.innerHTML = '<p class="text-red-400">Error loading products.</p>';
+            }
         }
 
-        window.editProduct = (id) => {
-            const products = window.Store.getProducts();
-            const product = products.find(p => p.id === id);
-            if (!product) return;
+        window.editProduct = async (id) => {
+            // In a real app, we might fetch a single doc, but we can reuse the list for now or refactor
+            // We need to wait for products if we want to find it from the list without a network call if we cached it,
+            // but since we don't cache explicitly in a variable, let's just fetch all again or assume they are rendered.
+            // BETTER: let's fetch again or just find it from the DOM? 
+            // Simplest: Fetch all (it's fast enough for admin) or use a global cache variable.
+            // Let's use a fresh fetch to be safe.
 
-            // Populate fields
-            addProductForm.querySelector('[name="name"]').value = product.name;
-            addProductForm.querySelector('[name="tagline"]').value = product.tagline;
-            addProductForm.querySelector('[name="price"]').value = product.price;
-            addProductForm.querySelector('[name="colorFrom"]').value = product.colorFrom;
-            addProductForm.querySelector('[name="colorTo"]').value = product.colorTo;
-            addProductForm.querySelector('[name="top"]').value = product.top;
-            addProductForm.querySelector('[name="heart"]').value = product.heart;
-            addProductForm.querySelector('[name="base"]').value = product.base;
+            try {
+                const products = await window.Store.getProducts();
+                const product = products.find(p => p.id === id);
+                if (!product) return;
 
-            // UI Changes
-            isEditMode = true;
-            currentEditId = id;
-            submitBtn.textContent = 'UPDATE PRODUCT';
+                // Populate fields
+                addProductForm.querySelector('[name="name"]').value = product.name;
+                addProductForm.querySelector('[name="tagline"]').value = product.tagline;
+                addProductForm.querySelector('[name="price"]').value = product.price;
+                addProductForm.querySelector('[name="colorFrom"]').value = product.colorFrom;
+                addProductForm.querySelector('[name="colorTo"]').value = product.colorTo;
+                addProductForm.querySelector('[name="top"]').value = product.top;
+                addProductForm.querySelector('[name="heart"]').value = product.heart;
+                addProductForm.querySelector('[name="base"]').value = product.base;
 
-            document.querySelector('h2 span').textContent = '✎';
-            document.querySelector('h2').childNodes[2].textContent = ' Edit Scent'; // Careful with childNodes if markup changes
+                // UI Changes
+                isEditMode = true;
+                currentEditId = id;
+                submitBtn.textContent = 'UPDATE PRODUCT';
 
-            // Add Cancel Button
-            if (!document.getElementById('cancel-edit-btn')) {
-                const cancelBtn = document.createElement('button');
-                cancelBtn.id = 'cancel-edit-btn';
-                cancelBtn.type = 'button';
-                cancelBtn.textContent = 'CANCEL';
-                cancelBtn.className = 'w-full mt-2 text-xs uppercase tracking-widest opacity-60 hover:opacity-100 hover:text-red-400';
-                cancelBtn.onclick = resetForm;
-                submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
+                document.querySelector('h2 span').textContent = '✎';
+                document.querySelector('h2').childNodes[2].textContent = ' Edit Scent';
+
+                // Add Cancel Button
+                if (!document.getElementById('cancel-edit-btn')) {
+                    const cancelBtn = document.createElement('button');
+                    cancelBtn.id = 'cancel-edit-btn';
+                    cancelBtn.type = 'button';
+                    cancelBtn.textContent = 'CANCEL';
+                    cancelBtn.className = 'w-full mt-2 text-xs uppercase tracking-widest opacity-60 hover:opacity-100 hover:text-red-400';
+                    cancelBtn.onclick = resetForm;
+                    submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
+                }
+
+                // Scroll to form
+                document.querySelector('.lg\\:col-span-1').scrollIntoView({ behavior: 'smooth' });
+
+            } catch (err) {
+                console.error(err);
+                alert("Could not load product details.");
             }
-
-            // Scroll to form
-            document.querySelector('.lg\\:col-span-1').scrollIntoView({ behavior: 'smooth' });
         };
 
-        window.deleteProduct = (id) => {
+        window.deleteProduct = async (id) => {
             if (confirm('Are you sure you want to remove this scent from the collection?')) {
-                window.Store.removeProduct(id);
-                renderAdminProducts();
+                try {
+                    await window.Store.removeProduct(id);
+                    await renderAdminProducts();
+                } catch (err) {
+                    console.error(err);
+                    alert("Error deleting product.");
+                }
             }
         }
     </script>
